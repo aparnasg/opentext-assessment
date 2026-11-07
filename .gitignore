@@ -1,0 +1,35 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.aws-sam/
+.env
+.env.*
+!.env.example
+samconfig.toml
+
+# Local credentials and machine-specific configuration
+*.pem
+*.key
+*.p12
+*.pfx
+.aws/
+.ssh/
+.idea/
+.vscode/
+
+# Saved webpages, article outputs and personal review artifacts
+/article*.html
+/article*.htm
+/article*.md
+/article*.txt
+/article*_files/
+/*.docx
+/*.pdf
+/*.png
+/*.jpg
+/*.zip
+/outputs/
+/work/
+/transcripts/
+/chat-exports/
+/git
