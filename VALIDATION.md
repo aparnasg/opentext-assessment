@@ -50,3 +50,11 @@ These successful live checks supersede earlier retrieval failures. They establis
 - Full suite: **43 passed, 1 existing dependency deprecation warning in 2.88 seconds**.
 - Ran both CLI examples successfully: `python -m app.triangle` and `python -c "from app.triangle import triangle_mn; print(triangle_mn(5, 8))"`.
 - Updated README, session record and source ZIP. GitHub publication and CI/cloud build verification remain pending.
+
+## GitHub publication and CI evidence
+
+- Source published at https://github.com/aparnasg/opentext-assessment.
+- User supplied the successful workflow URL: https://github.com/aparnasg/opentext-assessment/actions/runs/42351565069.
+- The user's GitHub Actions screenshot shows an overall green result for Build and test, commit 141f165. The workflow contains Python tests, compilation, SAM validation, SAM build and artifact upload. The agent could not fetch the run page through the web reader; individual step logs were not independently inspected.
+- User also supplied a local test screenshot confirming 43 passed, 1 existing dependency warning in 2.91 seconds, and reported comparing all three browser conversions with the originals.
+- These results supersede earlier notes that repository publication and the initial CI run were pending. AWS deployment and performance load testing remain unperformed. The actual sanitized AI conversation export remains outstanding.

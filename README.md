@@ -2,6 +2,8 @@
 
 Python 3.12 / FastAPI technical assessment. Includes a triangle exercise, pure HTML extraction and transformation, relative-link joining, a REST API, browser UI, automated tests, GitHub Actions and AWS SAM + CloudFront configuration.
 
+Source: [GitHub repository](https://github.com/aparnasg/opentext-assessment). [Successful Build and test run](https://github.com/aparnasg/opentext-assessment/actions/runs/42351565069), as shown in the submitted GitHub Actions screenshot. The final local suite has 43 passing tests. No AWS deployment has been performed.
+
 ## Run locally
 
 ```powershell
@@ -89,7 +91,7 @@ sam build
 sam deploy --guided
 ```
 
-The template defines Lambda, HTTP API throttling and CloudFront. Its default behavior uses AWS's managed CachingDisabled policy; only `/api/articles/*` uses the custom public cache with zero minimum TTL and 300-second maximum. Cookies and query strings do not affect public article representations. CDN POSTs are blocked; the origin import route is disabled by default. The API origin remains publicly reachable. Add WAF, budgets, alarms and access logs before an exposed production rollout. Lambda's execution role only grants basic logging. No AWS resources were deployed or cloud validation claimed during generation.
+The template defines Lambda, HTTP API throttling and CloudFront. Its default behavior uses AWS's managed CachingDisabled policy; only `/api/articles/*` uses the custom public cache with zero minimum TTL and 300-second maximum. Cookies and query strings do not affect public article representations. CDN POSTs are blocked; the origin import route is disabled by default. The API origin remains publicly reachable. Add WAF, budgets, alarms and access logs before an exposed production rollout. Lambda's execution role only grants basic logging. The linked CI workflow includes SAM validation and build; its overall success was confirmed by the user's GitHub Actions screenshot. No AWS resources were deployed.
 
 Upstream fetches have a 5-second connect timeout, 15-second IO timeout, 20-second overall deadline, and a 2 MB decoded response limit. Exact host/path allowlisting, redirects restricted to the same HTTPS host, article route and ID (at most three hops), and disabled environment proxies reduce SSRF exposure. The API validates uploaded size after JSON decoding; an authenticated gateway payload limit is needed for a strict pre-buffering limit. API Gateway/Lambda also impose platform payload limits. Avoid logging imported bodies, keys or protected article text. Respect licensing, robots guidance and OpenText access terms; redistribution requires permission. Shared caching is appropriate only for public content. Revocations can remain cached up to five minutes; invalidate affected paths for urgent removals.
 
@@ -101,15 +103,6 @@ Build an authorized gold set across all three example IDs and varied tables/code
 
 ## Submission and ownership
 
-Create a reviewable repository and push these files using your own account:
+The source is published at [aparnasg/opentext-assessment](https://github.com/aparnasg/opentext-assessment). Review the source and confirm you can change selectors, explain cache isolation and error handling, and adapt the triangle rounding rule during the interview.
 
-```text
-git init
-git add .
-git commit -m "Add Python knowledge Markdown assessment"
-git branch -M main
-git remote add origin https://github.com/YOUR-ACCOUNT/opentext-assessment.git
-git push -u origin main
-```
-
-No remote repository has been created. Review the source and confirm you can change selectors, explain cache isolation and error handling, and adapt the triangle rounding rule during the interview. `AI_SESSION.md` contains a sanitized session record and clearly states its limits. The assignment explicitly requires the actual agent session or exported transcript: attach this chat's native export/share as well, after reviewing it for personal or confidential data. The session record is not a substitute for that export.
+`AI_SESSION.md` contains a sanitized session summary, not the actual conversation export. The actual sanitized AI conversation must still be supplied before final submission. Remove personal data, credentials and confidential material from text, screenshots and attachments before sharing. The summary is not a substitute for that required export.
