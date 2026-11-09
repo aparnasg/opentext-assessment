@@ -1,3 +1,4 @@
+# Regression tests use synthetic HTML and mocked HTTP responses; no live login needed.
 import asyncio
 import json
 
@@ -9,6 +10,7 @@ from app import main
 from app.converter import ArticleError, article_id, convert, fetch
 from app.triangle import triangle, triangle_mn
 
+# This sample article exercises headings, lists, code, tables and unsafe links.
 URL = "https://my.opentext.com/support/article/2341059"
 HTML = '''<html><title>Fallback</title><nav>Ignore me</nav><article><h1>Recovery guide</h1>
 <p>Follow these steps to restore the service safely after an unexpected interruption.</p>
@@ -16,9 +18,11 @@ HTML = '''<html><title>Fallback</title><nav>Ignore me</nav><article><h1>Recovery
 <pre><code>restart --safe</code></pre><a href="/support/article/1986936">Related</a>
 <a href="javascript:alert(1)">Unsafe</a><script>secret()</script>
 <table><tr><th>Code</th><th>Meaning</th></tr><tr><td>200</td><td>OK</td></tr></table></article></html>'''
+# Exercise FastAPI in-process, without starting a separate web server.
 client = TestClient(main.app)
 
 
+# Check the documented triangle interpretation, edge dimensions and invalid inputs.
 def test_triangle():
     assert triangle() == "*\n***\n****"
 
@@ -40,12 +44,14 @@ def test_bonus_triangle_rejects_invalid_dimensions(m, n):
         triangle_mn(m, n)
 
 
+# Reject URLs outside the supported source, including misleading hostnames.
 @pytest.mark.parametrize("url", ["http://my.opentext.com/support/article/1", "https://evil.test/1", "https://my.opentext.com.evil.test/support/article/1", URL + "?x=1", URL + "/../2"])
 def test_reject_urls(url):
     with pytest.raises(ValueError):
         article_id(url)
 
 
+# Preserve article structure/provenance while removing navigation and unsafe content.
 def test_conversion():
     result = convert(HTML, URL)
     text = result["markdown"]
@@ -57,6 +63,7 @@ def test_conversion():
     assert result == convert(HTML, URL)
 
 
+# Formatting regressions: simplify emphasis without altering literal stars in code.
 @pytest.mark.parametrize("fragment,expected", [
     ('<em><strong><strong>Note</strong>:</strong></em>', '***Note:***'),
     ('<strong>(Last update:</strong><strong> 27th October 2026)</strong>', '**(Last update: 27th October 2026)**'),
@@ -72,6 +79,7 @@ def test_clean_emphasis_preserves_content(fragment, expected):
     assert 'This paragraph supplies sufficient context' in text
 
 
+# A loading/login page must fail explicitly, rather than become a converted article.
 @pytest.mark.parametrize("html", ["<main>Loading article...</main>", "<article>Loading article...</article>", "<form>Sign in</form>"])
 def test_access_shells(html):
     with pytest.raises(ArticleError):
@@ -79,6 +87,7 @@ def test_access_shells(html):
 
 
 def test_api_cache_and_errors(monkeypatch):
+    # Replace fetching for this test to verify API caching and error handling offline.
     async def fixture(url):
         return HTML
     monkeypatch.setattr(main, "fetch", fixture)
@@ -95,6 +104,7 @@ def test_api_cache_and_errors(monkeypatch):
 
 
 def test_private_import(monkeypatch):
+    # A dummy key tests authorization; monkeypatch restores the environment afterward.
     monkeypatch.setenv("IMPORT_API_KEY", "test-only-key")
     payload = {"source_url": URL, "html": HTML}
     assert client.post("/api/convert", json=payload).status_code == 401
@@ -105,6 +115,7 @@ def test_private_import(monkeypatch):
     assert "textarea" in client.get("/").text
 
 
+# Mock upstream failures and the decoded size limit without external HTTP requests.
 @pytest.mark.parametrize("status,content_type,body", [(302, "text/html", b"redirect"), (403, "text/html", b"login"), (200, "application/json", b"{}"), (200, "text/html", b"x" * 2_000_001)], ids=["redirect", "forbidden", "wrong-type", "oversized"])
 def test_fetch_boundary(monkeypatch, status, content_type, body):
     original = httpx.AsyncClient
@@ -115,6 +126,7 @@ def test_fetch_boundary(monkeypatch, status, content_type, body):
 
 
 def test_embedded_nuxt_article():
+    # Nuxt uses integer references into a flat array; require the requested article ID.
     payload = [{"support-article-2341059": 1}, {"Id": 2, "Title": 3, "Content": 4}, "2341059", "Embedded guide", "<h2>Resolution</h2><p>Restore backup carefully and verify that the service is running correctly.</p>"]
     page = '<main>Loading article...</main><script id="__NUXT_DATA__" type="application/json">' + json.dumps(payload) + '</script>'
     result = convert(page, URL)
@@ -125,12 +137,14 @@ def test_embedded_nuxt_article():
         convert('<script id="__NUXT_DATA__" type="application/json">' + json.dumps(payload) + '</script>', URL)
 
 
+# Malformed JSON/references must not be accepted as article content.
 @pytest.mark.parametrize("payload", ["{broken", "{}", '[{"support-article-2341059":999}]', '[{"support-article-2341059":true}]'])
 def test_bad_embedded_data(payload):
     with pytest.raises(ArticleError):
         convert('<script id="__NUXT_DATA__" type="application/json">' + payload + '</script>', URL)
 
 
+# Follow same-article HTTPS redirects only; unsafe targets must not be requested.
 @pytest.mark.parametrize("target", ["/support/article/example-title/2341059", "https://evil.test/support/article/2341059", "/support/article/1986936", "/login", "http://my.opentext.com/support/article/2341059"])
 def test_redirect_validation(monkeypatch, target):
     original = httpx.AsyncClient
