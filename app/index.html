@@ -1,6 +1,9 @@
 <!doctype html>
+<!-- Local UI for the converter API; ui.js handles requests and downloads. -->
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Knowledge to Markdown</title><script src="/ui.js" defer></script></head>
 <body><main><h1>Knowledge to Markdown</h1><p>Convert a publicly accessible OpenText article into portable Markdown.</p>
+<!-- Browser input validation helps users; the API also validates every article ID. -->
 <form id="convert"><label for="article">Article ID</label> <input id="article" name="article" pattern="[0-9]{1,12}" required value="2341059"><button id="submit">Convert article</button></form>
+<!-- Announce progress/errors accessibly and show Markdown as read-only plain text. -->
 <p id="status" role="status" aria-live="polite"></p><label for="result">Markdown output</label><br><textarea id="result" rows="24" cols="90" readonly></textarea><p><button id="download" disabled>Download Markdown</button></p>
 <p>Access-protected or JavaScript-only articles require an authorized HTML export through the API. See the <a href="/openapi.json">OpenAPI specification</a>.</p></main></body></html>
