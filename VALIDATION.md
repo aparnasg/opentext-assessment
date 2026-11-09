@@ -1,5 +1,20 @@
 # Validation status
 
+## Current audit result November 9, 2026
+
+- Audited public commit `3e80d52c9ae805610637e642c09c2bf09dbda6a3`: all 15 tracked files fetched from GitHub matched the local reviewed files after line-ending normalization.
+- Fresh local test run: **43 passed, 1 existing dependency deprecation warning in 6.01 seconds**. Python compilation, JavaScript syntax checking and `pip check` passed.
+- Fresh in-process API requests with real outbound OpenText retrieval returned HTTP 200 for all three supplied IDs. Each response had a matching source URL, valid SHA-256 hash, ETag and public cache headers. Returned Markdown character counts were 11,736 (1986936), 1,680 (2341059) and 4,737 (2310451); these are snapshot measurements, not fixed acceptance values.
+- Homepage, JavaScript, health and OpenAPI endpoints returned 200. Invalid article IDs returned 422; unauthorized HTML imports returned 401.
+- GitHub's API confirmed [CI run 42582978204](https://github.com/aparnasg/opentext-assessment/actions/runs/42582978204) completed successfully for that commit. Job-step metadata reported success for tests, compilation, SAM validation, SAM build and artifact upload. Full raw CI logs were not downloaded.
+- Reviewed the supplied screenshots: the file list and both Mermaid diagrams render. No new automated browser or accessibility audit was performed.
+- Pattern scanning of tracked text files found no email addresses, personal Windows paths, common provider-token patterns or private-key blocks. Reachable local commit author/committer emails used GitHub noreply addresses. These checks are not a complete security audit.
+- The reviewed sanitized conversation transcript is now in the repository and linked from README. Its historical body remains unchanged from the original redacted export; omitted evidence and the export boundary are disclosed. It is not a full archive of every tool output or screenshot.
+
+These results supersede earlier pending-status statements below, which are retained as development history. AWS deployment, production load testing and independent interview proficiency remain unverified. Direct dependencies are pinned; transitive dependency locking and vulnerability auditing remain production-hardening work.
+
+## Earlier validation history
+
 Executed on Windows, Python 3.12.3, November 5, 2026:
 
 - Installed the seven pinned direct dependencies in an isolated virtual environment. Initial pip attempts stalled; an explicit PyPI index with cache and keyring disabled completed successfully. An attempted `legacy-certs` option was rejected by pip 24.0 and was not used in the successful install.

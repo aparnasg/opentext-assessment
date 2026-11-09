@@ -1,5 +1,11 @@
 # Sanitized AI coding session record
 
+## Current submission status
+
+Reviewed November 9, 2026. The source and [reviewed sanitized conversation transcript](AI_CONVERSATION_SANITIZED.md) are now published in [the public repository](https://github.com/aparnasg/opentext-assessment). The [latest audited CI run](https://github.com/aparnasg/opentext-assessment/actions/runs/42582978204) succeeded for commit `3e80d52`, including tests, SAM validation and SAM build. A fresh local audit again passed all 43 tests and retrieved all three example articles through the API. No AWS deployment was performed.
+
+The sections below are a chronological development summary. Earlier statements that publication, live retrieval or the transcript were pending describe those earlier stages and are superseded by this status. This summary is separate from the actual-history transcript, whose export boundary and omissions remain explicitly disclosed. The later introductory notes in that transcript are labelled as editorial additions.
+
 Date: November 5, 2026. Agent: Codex. This file is a condensed factual record, not a verbatim export and not a claim of human authorship. The candidate must attach the actual chat export or supported share link to satisfy the assessment's session requirement.
 
 ## User prompt
