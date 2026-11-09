@@ -1,4 +1,4 @@
-"""Pure extraction/transformation plus a narrowly scoped network adapter."""
+"""Fetch OpenText HTML and convert article content to Markdown without an AI model."""
 import hashlib
 import json
 import re
@@ -17,6 +17,7 @@ class ArticleError(Exception):
 
 
 def article_id(url: str) -> str:
+    """Accept only the supported HTTPS host/article path and return its numeric ID."""
     match = URL.fullmatch(url)
     if not match:
         raise ValueError("Use an HTTPS my.opentext.com/support/article/<numeric-id> URL")
@@ -91,6 +92,7 @@ def normalize_emphasis(body):
 
 
 def convert(html: str, url: str) -> dict:
+    """Convert supplied HTML into Markdown and source metadata without network calls."""
     ident = article_id(url)
     soup = BeautifulSoup(html, "html.parser")
     # Conservative selectors: never convert the entire navigation/login shell.
@@ -104,6 +106,7 @@ def convert(html: str, url: str) -> dict:
     heading = body.find("h1")
     title = heading.get_text(" ", strip=True) if heading else (soup.title.get_text(" ", strip=True) if soup.title else f"Article {ident}")
     if heading:
+        # The title is added once in the Markdown header below.
         heading.decompose()
     if len(body.get_text(" ", strip=True)) < 40 or body.get_text(" ", strip=True).lower() in {"loading article...", "sign in"}:
         raise ArticleError("Article body is empty or is an access/loading placeholder")
@@ -118,11 +121,13 @@ def convert(html: str, url: str) -> dict:
     normalize_emphasis(body)
     text = markdownify(str(body), heading_style="ATX", bullets="-").strip()
     markdown = f"# {title}\n\nSource: {url}\n\n{text}\n"
+    # The API uses this stable content hash to construct its ETag.
     return {"id": ident, "title": title, "source_url": url, "markdown": markdown,
             "sha256": hashlib.sha256(markdown.encode()).hexdigest()}
 
 
 async def fetch(url: str) -> str:
+    """Retrieve HTML with bounded reads and explicitly validated redirects."""
     ident = article_id(url)
     # Observed OpenText route behavior: /article/<id> serves a generic shell
     # to plain HTTP clients; /article/<text>/<id> includes the article JSON.
@@ -149,6 +154,7 @@ async def fetch(url: str) -> str:
                 if "text/html" not in response.headers.get("content-type", "").lower():
                     raise ArticleError("Source did not return HTML")
                 chunks, size = [], 0
+                # Enforce the size limit while streaming, not after a full download.
                 async for chunk in response.aiter_bytes():
                     size += len(chunk)
                     if size > MAX_BYTES:
