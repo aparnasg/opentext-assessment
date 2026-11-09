@@ -1,3 +1,4 @@
+# Test the Python application and build its serverless package; no AWS deployment.
 name: Build and test
 on: [push, pull_request]
 permissions:
@@ -12,11 +13,17 @@ jobs:
           python-version: '3.12'
           cache: pip
       - run: pip install -r requirements.txt
+
+      # Tests use fixtures and mocked requests, so CI needs no live OpenText access.
       - run: python -m pytest -q
       - run: python -m compileall -q app
+
+      # Validate the AWS infrastructure template and package the Lambda application.
       - uses: aws-actions/setup-sam@v2
       - run: sam validate --lint
       - run: sam build
+
+      # Retain the build for review/download; this does not publish the application.
       - uses: actions/upload-artifact@v4
         with:
           name: lambda-build
