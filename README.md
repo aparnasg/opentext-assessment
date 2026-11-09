@@ -49,22 +49,50 @@ This implementation extracts the public webpage's embedded data; it does not exe
 
 ## Architecture and multi-client distribution
 
+### Conversion workflow
+
+This view describes the implemented public-article conversion path. It runs locally today; the same FastAPI application is packaged for the proposed cloud deployment below. Conversion uses Python libraries, not an AI model.
+
+```mermaid
+flowchart TD
+  INPUT["Browser or API client submits an article ID"] --> VALIDATE["FastAPI validates the numeric ID"]
+  VALIDATE --> FETCH["Fetch public OpenText HTML using the text-plus-ID route"]
+  FETCH --> EXTRACT["Extract the article body or matching embedded Nuxt JSON record"]
+  EXTRACT --> CLEAN["Remove page chrome and simplify redundant emphasis"]
+  CLEAN --> JOIN["Resolve relative links and join source metadata"]
+  JOIN --> CONVERT["Convert article HTML to Markdown"]
+  CONVERT --> RESULT["Return JSON: ID, title, source URL, Markdown and SHA-256"]
+  RESULT --> DISPLAY["Browser displays plain Markdown and offers a file download"]
+  RESULT --> CLIENT["Other clients can consume the API response"]
+  VALIDATE -.-> ERROR["Invalid input: 422; upstream or extraction failure: 502"]
+  FETCH -.-> ERROR
+  EXTRACT -.-> ERROR
+```
+
+Successful public responses include an ETag and cache headers; an exact matching `If-None-Match` returns 304 instead of the JSON body. Errors are marked `no-store`. The separate `POST /api/convert` path accepts an authorized HTML export, skips fetching and uses the same conversion logic; it requires a configured API key and is never shared-cacheable. See the API section for its access restrictions.
+
+### Proposed cloud architecture
+
+This is the AWS deployment design represented by `template.yaml`, not a running cloud environment. CI has validated and built the configuration; no AWS resources have been deployed. Web, mobile/desktop and AI clients illustrate consumers of the same API contract. A complete mobile application or AI question-answering agent is not implemented by this project.
+
 ```mermaid
 flowchart LR
-  W[Web browser] --> CDN[CloudFront HTTPS CDN]
-  M[Mobile / desktop app] --> CDN
-  A[AI agent / retrieval pipeline] --> CDN
-  CDN --> API[API Gateway: throttling]
-  API --> L[Lambda / FastAPI]
-  L --> V[Validate fixed host and numeric ID]
-  V --> OT[Public OpenText HTML]
-  OT --> X[Extract body and metadata]
-  X --> T[Transform HTML and join relative links]
-  T --> J[JSON with Markdown / source / hash]
-  J --> CDN
-  E[Authorized HTML export] --> P[Private import API: key, no shared cache]
-  P --> X
+  WEB["Web browser"] --> CDN["Amazon CloudFront: HTTPS delivery and public article cache"]
+  MOBILE["Mobile or desktop client"] --> CDN
+  AGENT["AI agent or retrieval client"] --> CDN
+  CDN -->|"Cache miss or expired entry"| GATEWAY["API Gateway HTTP API: request throttling"]
+  GATEWAY --> LAMBDA["AWS Lambda: Mangum and FastAPI converter"]
+  LAMBDA <-->|"Public HTML request and response"| OPENTEXT["my.opentext.com"]
+  LAMBDA -->|"JSON response with ETag and cache headers"| GATEWAY
+  GATEWAY -->|"Origin response"| CDN
+  CDN -->|"Cached or fresh response"| WEB
+  CDN -->|"Cached or fresh response"| MOBILE
+  CDN -->|"Cached or fresh response"| AGENT
 ```
+
+Only successful public article GET responses under `/api/articles/*` are eligible for the configured shared cache, for up to 300 seconds. Other paths use the disabled-cache policy. CloudFront allows read methods and blocks POSTs. The API Gateway origin remains directly reachable; the direct-origin export import route is disabled unless an API key is configured and must remain `no-store`. This design does not provide enterprise identity management or a private API origin.
+
+GitHub Actions tests the code, validates the SAM template, builds the serverless artifact and uploads that artifact. It does not automatically deploy the architecture. A reviewed AWS deployment would be a separate operation.
 
 The distribution contract is JSON containing Markdown, rather than presentation-specific HTML. Websites can render it safely, mobile apps can use native views, and agents can ingest it with provenance. For large-scale ingestion, add a scheduled authorized connector, queue, versioned object storage and a manifest before adding vector indexing. Such a pipeline avoids fetching the source for every CDN miss and supports revalidation, deletion and auditable content versions. It is a proposed extension, not implemented here.
 
@@ -99,10 +127,12 @@ Upstream fetches have a 5-second connect timeout, 15-second IO timeout, 20-secon
 
 Measure cold and warm Lambda duration, p50/p95/p99 client latency, error rate by cause, source latency, CloudFront hit ratio, bytes transferred and cost per 1,000 requests. Run a staged load test against an authorized test origin with cache-hit, cache-miss and source-failure scenarios. Initial proposed targets: warm CDN-hit p95 <200 ms in target regions, public error rate <1% when upstream is healthy, and >90% cache hits for repeated popular articles. These are acceptance goals, not measured results.
 
-Build an authorized gold set across all three example IDs and varied tables/code/images. Compare title, paragraphs, heading hierarchy, links and source attribution against the browser article; track missing text, navigation leakage and stale content. For AI use, compare answer correctness, grounded citations, retrieval recall@k and prompt-injection resistance before/after conversion. For people, evaluate task completion, download success, accessibility and feedback across web/mobile/agent clients. Track revisions by content hash and test deletion/invalidation propagation. Avoid collecting personal queries or protected text in analytics.
+Build an authorized gold set across all three example IDs and varied tables/code/images. Compare title, paragraphs, heading hierarchy, links and source attribution against the browser article; track missing text, navigation leakage and stale content. For future AI integration, compare answer correctness, whether citations support the answers, retrieval recall among the top k results, and resistance to malicious instructions embedded in article content. These are proposed evaluations for a future AI integration; the current converter does not implement AI question answering or a search system. For people, evaluate task completion, download success, accessibility and feedback across web/mobile/agent clients. Track revisions by content hash and test deletion/invalidation propagation. Avoid collecting personal queries or protected text in analytics.
 
 ## Submission and ownership
 
 The source is published at [aparnasg/opentext-assessment](https://github.com/aparnasg/opentext-assessment). Review the source and confirm you can change selectors, explain cache isolation and error handling, and adapt the triangle rounding rule during the interview.
 
-`AI_SESSION.md` contains a sanitized session summary, not the actual conversation export. The actual sanitized AI conversation must still be supplied before final submission. Remove personal data, credentials and confidential material from text, screenshots and attachments before sharing. The summary is not a substitute for that required export.
+The [sanitized AI coding conversation transcript](AI_CONVERSATION_SANITIZED.md) contains the available actual user/assistant conversation and command records, with labelled redactions and editorial navigation notes. It includes an engineering decision guide, supporting evidence links and a disclosure of omitted screenshots, attachment bodies, tool output and historical patches. The historical snapshot ends during export preparation at Turn 111; later explanatory notes are explicitly labelled. `AI_SESSION.md` is a shorter summary and is not a substitute for the transcript.
+
+The transcript was checked for personal email addresses, local user paths and common credential patterns before inclusion. The historical conversation section was verified against the original redacted export. No raw conversation file, personal screenshot document, private history export or downloaded article body is included in this repository.
