@@ -1,13 +1,17 @@
+# Proposed AWS deployment: API Gateway, a Python Lambda function and CloudFront.
+# CI validates/builds this template; resources are created only by a deployment.
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: Public OpenText article converter with CloudFront delivery
 Resources:
+  # HTTP entry point with request-rate and burst throttling.
   Api:
     Type: AWS::Serverless::HttpApi
     Properties:
       DefaultRouteSettings:
         ThrottlingBurstLimit: 20
         ThrottlingRateLimit: 10
+  # Package the application from the project root; Mangum handles Lambda events.
   Converter:
     Type: AWS::Serverless::Function
     Properties:
@@ -17,8 +21,10 @@ Resources:
       MemorySize: 512
       Timeout: 25
       Policies:
+        # Allow the function to write execution logs to CloudWatch.
         - AWSLambdaBasicExecutionRole
       Events:
+        # Route both the homepage and nested API/UI paths to FastAPI.
         Root:
           Type: HttpApi
           Properties:
@@ -31,6 +37,8 @@ Resources:
             ApiId: !Ref Api
             Path: /{proxy+}
             Method: ANY
+  # Honor origin cache headers with a maximum shared-cache lifetime of 300 seconds.
+  # A zero minimum TTL allows no-store responses to remain uncached.
   PublicCache:
     Type: AWS::CloudFront::CachePolicy
     Properties:
@@ -42,6 +50,7 @@ Resources:
         ParametersInCacheKeyAndForwardedToOrigin:
           EnableAcceptEncodingGzip: true
           EnableAcceptEncodingBrotli: true
+          # Public article content is keyed by path, without user-specific inputs.
           CookiesConfig: {CookieBehavior: none}
           HeadersConfig: {HeaderBehavior: none}
           QueryStringsConfig: {QueryStringBehavior: none}
@@ -51,6 +60,7 @@ Resources:
       DistributionConfig:
         Enabled: true
         HttpVersion: http2
+        # Avoid CloudFront's default error-cache delay for these response codes.
         CustomErrorResponses:
           - ErrorCode: 403
             ErrorCachingMinTTL: 0
@@ -64,12 +74,15 @@ Resources:
             ErrorCachingMinTTL: 0
           - ErrorCode: 504
             ErrorCachingMinTTL: 0
+        # Read methods only: CDN requests cannot POST HTML imports.
+        # The default path policy is AWS's managed CachingDisabled policy.
         DefaultCacheBehavior:
           TargetOriginId: api
           ViewerProtocolPolicy: redirect-to-https
           AllowedMethods: [GET, HEAD, OPTIONS]
           CachedMethods: [GET, HEAD]
           CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+        # Only article paths use the custom cache; the API supplies cache headers.
         CacheBehaviors:
           - PathPattern: /api/articles/*
             TargetOriginId: api
@@ -77,6 +90,8 @@ Resources:
             AllowedMethods: [GET, HEAD, OPTIONS]
             CachedMethods: [GET, HEAD]
             CachePolicyId: !Ref PublicCache
+        # Use HTTPS to reach API Gateway. The origin is still publicly reachable;
+        # import authorization is enforced by the application, not this CDN.
         Origins:
           - Id: api
             DomainName: !Sub '${Api}.execute-api.${AWS::Region}.${AWS::URLSuffix}'
@@ -86,4 +101,5 @@ Resources:
           CloudFrontDefaultCertificate: true
 Outputs:
   Website:
+    # Available after deployment; declaring this output does not deploy the site.
     Value: !Sub 'https://${Distribution.DomainName}'
