@@ -19,4 +19,13 @@ def triangle() -> str:
 
 
 if __name__ == "__main__":
+    print("Required 3 x 4 triangle:")
     print(triangle())
+
+    print("\nEnter a size for the bonus triangle.")
+    try:
+        m = int(input("Enter m (number of rows): "))
+        n = int(input("Enter n (maximum number of stars per row): "))
+        print(triangle_mn(m, n))
+    except ValueError:
+        print("Error: m and n must be positive whole numbers.")
